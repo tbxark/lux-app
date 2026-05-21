@@ -57,10 +57,10 @@ type Options struct {
 
 // Aria2RPCData defines the data structure of JSON RPC 2.0 info for Aria2.
 type Aria2RPCData struct {
-	JSONRPC string         `json:"jsonrpc"`
-	ID      string         `json:"id"`
-	Method  string         `json:"method"`
-	Params  [3]interface{} `json:"params"`
+	JSONRPC string `json:"jsonrpc"`
+	ID      string `json:"id"`
+	Method  string `json:"method"`
+	Params  [3]any `json:"params"`
 }
 
 // Aria2Input is options for aria2.addUri.

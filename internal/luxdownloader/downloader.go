@@ -79,6 +79,9 @@ func (downloader *Downloader) writeFile(url string, file *os.File, headers map[s
 	if err != nil {
 		return 0, err
 	}
+	if res == nil {
+		return 0, errors.Errorf("nil response for %s", url)
+	}
 	defer res.Body.Close() // nolint
 
 	// Note that io.Copy reads 32kb(maximum) from input and writes them to output, then repeats.
@@ -374,11 +377,7 @@ func filePartPath(filepath string, part *FilePartMeta) string {
 }
 
 func computeEnd(s, chunkSize, max int64) int64 {
-	var end int64
-	end = s + chunkSize - 1
-	if end > max {
-		end = max
-	}
+	var end = min(s+chunkSize-1, max)
 	return end
 }
 
@@ -473,6 +472,9 @@ func mergeMultiPart(filepath string, parts []*FilePartMeta) error {
 }
 
 func (downloader *Downloader) aria2(title string, stream *extractors.Stream) error {
+	if stream == nil || len(stream.Parts) == 0 || stream.Parts[0] == nil {
+		return errors.Errorf("aria2: empty stream for %s", title)
+	}
 	rpcData := Aria2RPCData{
 		JSONRPC: "2.0",
 		ID:      "lux", // can be modified
@@ -481,13 +483,17 @@ func (downloader *Downloader) aria2(title string, stream *extractors.Stream) err
 	rpcData.Params[0] = "token:" + downloader.option.Aria2Token
 	var urls []string
 	for _, p := range stream.Parts {
+		if p == nil {
+			continue
+		}
 		urls = append(urls, p.URL)
 	}
+	ext := stream.Parts[0].Ext
 	var inputs Aria2Input
 	inputs.Header = append(inputs.Header, "Referer: "+downloader.option.Refer)
 	for i := range urls {
 		rpcData.Params[1] = urls[i : i+1]
-		inputs.Out = fmt.Sprintf("%s[%d].%s", title, i, stream.Parts[0].Ext)
+		inputs.Out = fmt.Sprintf("%s[%d].%s", title, i, ext)
 		rpcData.Params[2] = &inputs
 		jsonData, err := json.Marshal(rpcData)
 		if err != nil {
@@ -536,7 +542,7 @@ func (downloader *Downloader) Download(data *extractors.Data) error {
 		streamName = sortedStreams[0].ID
 	}
 	stream, ok := data.Streams[streamName]
-	if !ok {
+	if !ok || stream == nil {
 		return errors.Errorf("no stream named %s", streamName)
 	}
 
@@ -548,16 +554,19 @@ func (downloader *Downloader) Download(data *extractors.Data) error {
 		}
 
 		for _, s := range sortedStreams {
+			if s == nil {
+				continue
+			}
 			// Looking for the best quality
 			if reg.MatchString(s.Quality) {
 				isFound = true
-				stream = data.Streams[s.ID]
+				stream = s
 				break
 			}
 			for _, part := range s.Parts {
-				if part.Ext == "m4a" {
+				if part != nil && part.Ext == "m4a" {
 					isFound = true
-					stream = data.Streams[s.ID]
+					stream = s
 					break
 				}
 			}

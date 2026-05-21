@@ -1,4 +1,4 @@
-package main
+package model
 
 import (
 	"os"
@@ -29,7 +29,7 @@ const (
 	prefChunkSize   = "chunk_size"
 )
 
-type downloadConfig struct {
+type Config struct {
 	URLText     string
 	URLs        []string
 	OutputPath  string
@@ -47,7 +47,7 @@ type downloadConfig struct {
 	ChunkSizeMB int
 }
 
-func defaultOutputPath() string {
+func DefaultOutputPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		return "."
@@ -55,10 +55,10 @@ func defaultOutputPath() string {
 	return filepath.Join(home, "Downloads")
 }
 
-func loadConfig(prefs fyne.Preferences) downloadConfig {
-	cfg := downloadConfig{
+func Load(prefs fyne.Preferences) Config {
+	cfg := Config{
 		URLText:     prefs.String(prefURLs),
-		OutputPath:  prefs.StringWithFallback(prefOutputPath, defaultOutputPath()),
+		OutputPath:  prefs.StringWithFallback(prefOutputPath, DefaultOutputPath()),
 		Stream:      prefs.String(prefStream),
 		Cookie:      prefs.String(prefCookie),
 		UserAgent:   prefs.String(prefUserAgent),
@@ -72,11 +72,11 @@ func loadConfig(prefs fyne.Preferences) downloadConfig {
 		Threads:     prefs.IntWithFallback(prefThreads, 10),
 		ChunkSizeMB: prefs.IntWithFallback(prefChunkSize, 1),
 	}
-	cfg.URLs = parseURLs(cfg.URLText)
+	cfg.URLs = ParseURLs(cfg.URLText)
 	return cfg
 }
 
-func saveConfig(prefs fyne.Preferences, cfg downloadConfig) {
+func Save(prefs fyne.Preferences, cfg Config) {
 	prefs.SetString(prefURLs, cfg.URLText)
 	prefs.SetString(prefOutputPath, cfg.OutputPath)
 	prefs.SetString(prefStream, cfg.Stream)
@@ -93,7 +93,7 @@ func saveConfig(prefs fyne.Preferences, cfg downloadConfig) {
 	prefs.SetInt(prefChunkSize, cfg.ChunkSizeMB)
 }
 
-func parseURLs(raw string) []string {
+func ParseURLs(raw string) []string {
 	lines := strings.Split(raw, "\n")
 	urls := make([]string, 0, len(lines))
 	for _, line := range lines {
@@ -105,7 +105,7 @@ func parseURLs(raw string) []string {
 	return urls
 }
 
-func parsePositiveInt(raw string, fallback int) int {
+func ParsePositiveInt(raw string, fallback int) int {
 	value, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || value <= 0 {
 		return fallback
@@ -113,7 +113,7 @@ func parsePositiveInt(raw string, fallback int) int {
 	return value
 }
 
-func (cfg downloadConfig) runnerConfig(onProgress luxrunner.ProgressFunc) luxrunner.Config {
+func (cfg Config) RunnerConfig(onProgress luxrunner.ProgressFunc) luxrunner.Config {
 	return luxrunner.Config{
 		URLs:             append([]string(nil), cfg.URLs...),
 		OutputPath:       cfg.OutputPath,

@@ -11,11 +11,10 @@ COMMA := ,
 FYNE ?= fyne
 ZIG ?= zig
 ZIG_WRAP := $(CURDIR)/scripts/zig-wrap
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 GOOS ?= $(shell go env GOOS 2>/dev/null)
 GOARCH ?= $(shell go env GOARCH 2>/dev/null)
 GO_BUILD := go build -trimpath
-LDFLAGS := -s -w -X main.version=$(VERSION)
+LDFLAGS := -s -w
 WINDOWS_LDFLAGS := $(LDFLAGS) -H=windowsgui
 HOST_CGO_LDFLAGS := $(if $(filter darwin,$(shell go env GOOS 2>/dev/null)),-Wl$(COMMA)-no_warn_duplicate_libraries,)
 DARWIN_SDK ?= $(shell xcrun --sdk macosx --show-sdk-path 2>/dev/null)
@@ -27,7 +26,8 @@ ZIG_TARGET_windows_amd64 := x86_64-windows-gnu
 ZIG_TARGET_windows_arm64 := aarch64-windows-gnu
 
 .PHONY: all build test tidy clean package package-native dist dist-linux dist-all \
-	darwin-amd64 darwin-arm64 windows-amd64 windows-arm64
+	darwin-amd64 darwin-arm64 windows-amd64 windows-arm64 \
+    format
 
 all: build
 
@@ -76,3 +76,14 @@ windows-amd64:
 
 windows-arm64:
 	$(MAKE) package GOOS=windows GOARCH=arm64 EXE_EXT=.exe CC='bash $(ZIG_WRAP) cc $(ZIG_TARGET_windows_arm64)' CXX='bash $(ZIG_WRAP) c++ $(ZIG_TARGET_windows_arm64)'
+
+format:
+	go fix ./...
+	go fmt ./...
+	go vet ./...
+	go get ./...
+	go test ./...
+	go mod tidy
+	golangci-lint fmt --no-config --enable gofmt,goimports
+	golangci-lint run --no-config --fix
+	nilaway -include-pkgs="$(MODULE)" ./...

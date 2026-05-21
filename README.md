@@ -2,6 +2,8 @@
 
 `lux-app` is a desktop downloader built with [Fyne](https://fyne.io/) and [lux](https://github.com/iawia002/lux). It provides a simple graphical interface for downloading videos, audio, captions, and playlists.
 
+![](./assets/preview.png)
+
 ## Features
 
 - Enter multiple URLs at once.

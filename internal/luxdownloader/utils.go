@@ -17,6 +17,9 @@ var (
 func genSortedStreams(streams map[string]*extractors.Stream) []*extractors.Stream {
 	sortedStreams := make([]*extractors.Stream, 0, len(streams))
 	for _, data := range streams {
+		if data == nil {
+			continue
+		}
 		sortedStreams = append(sortedStreams, data)
 	}
 	if len(sortedStreams) > 1 {

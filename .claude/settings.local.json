@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(GOCACHE=\"$\\(pwd\\)/.go-build-cache\" go build ./...)"
+    ]
+  }
+}

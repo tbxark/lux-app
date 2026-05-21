@@ -1,4 +1,4 @@
-package main
+package model
 
 import (
 	"reflect"
@@ -6,15 +6,15 @@ import (
 )
 
 func TestParseURLs(t *testing.T) {
-	got := parseURLs(" https://example.com/a\nhttps://example.com/b\n  BV1xx  \n\n")
+	got := ParseURLs(" https://example.com/a\nhttps://example.com/b\n  BV1xx  \n\n")
 	want := []string{"https://example.com/a", "https://example.com/b", "BV1xx"}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("parseURLs() = %#v, want %#v", got, want)
+		t.Fatalf("ParseURLs() = %#v, want %#v", got, want)
 	}
 }
 
 func TestRunnerConfig(t *testing.T) {
-	cfg := downloadConfig{
+	cfg := Config{
 		URLs:        []string{"https://example.com/video"},
 		OutputPath:  "/tmp/videos",
 		Stream:      " 720 ",
@@ -31,9 +31,9 @@ func TestRunnerConfig(t *testing.T) {
 		ChunkSizeMB: 8,
 	}
 
-	got := cfg.runnerConfig(nil)
+	got := cfg.RunnerConfig(nil)
 	if !reflect.DeepEqual(got.URLs, cfg.URLs) {
-		t.Fatalf("runnerConfig().URLs = %#v, want %#v", got.URLs, cfg.URLs)
+		t.Fatalf("RunnerConfig().URLs = %#v, want %#v", got.URLs, cfg.URLs)
 	}
 	if got.OutputPath != "/tmp/videos" ||
 		got.Stream != "720" ||
@@ -48,6 +48,6 @@ func TestRunnerConfig(t *testing.T) {
 		got.RetryTimes != 3 ||
 		got.ThreadNumber != 4 ||
 		got.ChunkSizeMB != 8 {
-		t.Fatalf("runnerConfig() = %#v", got)
+		t.Fatalf("RunnerConfig() = %#v", got)
 	}
 }
