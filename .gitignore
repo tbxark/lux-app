@@ -1,0 +1,5 @@
+bin/
+dist/
+.go-build-cache/
+.zig-cache/
+.zig-global-cache/
