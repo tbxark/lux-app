@@ -1,0 +1,14 @@
+Website = "https://github.com/tbxark/lux-app"
+
+[Details]
+Icon = "icon.png"
+Name = "Lux Downloader"
+ID = "github.com.tbxark.lux-app"
+Version = "0.1.0"
+Build = 13
+
+[LinuxAndBSD]
+GenericName = "Video Downloader"
+Categories = ["Network", "AudioVideo"]
+Comment = "Download online videos with lux"
+Keywords = ["video", "download", "lux"]

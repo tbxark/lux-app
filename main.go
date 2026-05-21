@@ -13,7 +13,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	luxapp "github.com/iawia002/lux/app"
+
+	"github.com/tbxark/lux-app/internal/luxrunner"
 )
 
 const appID = "github.com.tbxark.lux-app"
@@ -29,7 +30,7 @@ func main() {
 	cfg := loadConfig(prefs)
 
 	urls := widget.NewMultiLineEntry()
-	urls.SetPlaceHolder("Paste one or more video URLs, separated by whitespace or new lines.")
+	urls.SetPlaceHolder("Paste one or more video URLs, one per line.")
 	urls.SetMinRowsVisible(4)
 	urls.SetText(cfg.URLText)
 
@@ -107,8 +108,29 @@ func main() {
 	}
 
 	status := widget.NewLabel("Ready")
-	progress := widget.NewProgressBarInfinite()
+	progress := widget.NewProgressBar()
 	progress.Hide()
+	progressDetail := widget.NewLabel("")
+	progressDetail.Wrapping = fyne.TextWrapWord
+	progressDetail.Hide()
+
+	var (
+		progressLogMu   sync.Mutex
+		lastProgressLog string
+	)
+	updateProgress := func(event luxrunner.ProgressEvent) {
+		if line := progressLogLine(event); line != "" {
+			progressLogMu.Lock()
+			if line != lastProgressLog {
+				lastProgressLog = line
+				appendLog("%s", line)
+			}
+			progressLogMu.Unlock()
+		}
+		fyne.Do(func() {
+			applyProgressEvent(status, progress, progressDetail, event)
+		})
+	}
 
 	var runButton *widget.Button
 	runButton = widget.NewButtonWithIcon("Download", theme.DownloadIcon(), func() {
@@ -140,17 +162,21 @@ func main() {
 
 		saveConfig(prefs, cfg)
 		runButton.Disable()
+		progressLogMu.Lock()
+		lastProgressLog = ""
+		progressLogMu.Unlock()
+		progress.SetValue(0)
 		progress.Show()
-		status.SetText("Downloading")
+		progressDetail.SetText("Waiting for download metadata")
+		progressDetail.Show()
+		status.SetText("Preparing")
 		appendLog("starting %d URL(s)", len(cfg.URLs))
 
 		go func() {
-			args := cfg.luxArgs()
-			logArgs := redactLuxArgs(args)
-			appendLog("lux %s", strings.Join(logArgs[1:], " "))
-			err := luxapp.New().Run(args)
+			err := luxrunner.Run(cfg.runnerConfig(updateProgress))
 			fyne.Do(func() {
 				progress.Hide()
+				progressDetail.Hide()
 				runButton.Enable()
 				if err != nil {
 					status.SetText("Failed")
@@ -184,6 +210,7 @@ func main() {
 		nil,
 		container.NewVBox(
 			container.NewBorder(nil, nil, status, runButton, progress),
+			progressDetail,
 		),
 		nil,
 		nil,
@@ -201,4 +228,83 @@ func main() {
 
 	w.SetContent(content)
 	w.ShowAndRun()
+}
+
+func applyProgressEvent(status *widget.Label, progress *widget.ProgressBar, detail *widget.Label, event luxrunner.ProgressEvent) {
+	switch event.Phase {
+	case luxrunner.ProgressExtracting:
+		status.SetText("Extracting")
+		progress.SetValue(0)
+	case luxrunner.ProgressDownloading:
+		if event.Total > 0 {
+			progress.SetValue(event.Percent)
+			status.SetText(fmt.Sprintf("Downloading %.1f%%", event.Percent*100))
+		} else {
+			status.SetText("Downloading")
+		}
+	case luxrunner.ProgressMerging:
+		progress.SetValue(1)
+		status.SetText("Merging")
+	case luxrunner.ProgressSkipped:
+		progress.SetValue(1)
+		status.SetText("Skipped")
+	case luxrunner.ProgressFinished:
+		progress.SetValue(1)
+		status.SetText("Finished")
+	}
+	detail.SetText(progressDetailText(event))
+}
+
+func progressDetailText(event luxrunner.ProgressEvent) string {
+	target := event.Title
+	if target == "" {
+		target = event.FileName
+	}
+	if target == "" {
+		target = event.URL
+	}
+	if target == "" {
+		target = string(event.Phase)
+	}
+
+	switch {
+	case event.Total > 0:
+		return fmt.Sprintf("%s  %s / %s", target, formatBytes(event.Current), formatBytes(event.Total))
+	case event.Current > 0:
+		return fmt.Sprintf("%s  %s", target, formatBytes(event.Current))
+	default:
+		return target
+	}
+}
+
+func progressLogLine(event luxrunner.ProgressEvent) string {
+	target := event.Title
+	if target == "" {
+		target = event.URL
+	}
+	switch event.Phase {
+	case luxrunner.ProgressExtracting:
+		return fmt.Sprintf("extracting %s", target)
+	case luxrunner.ProgressMerging:
+		return fmt.Sprintf("merging %s", target)
+	case luxrunner.ProgressSkipped:
+		return fmt.Sprintf("skipped %s", target)
+	default:
+		return ""
+	}
+}
+
+func formatBytes(value int64) string {
+	if value < 1024 {
+		return fmt.Sprintf("%d B", value)
+	}
+	units := []string{"KiB", "MiB", "GiB", "TiB"}
+	size := float64(value)
+	for _, unit := range units {
+		size /= 1024
+		if size < 1024 {
+			return fmt.Sprintf("%.1f %s", size, unit)
+		}
+	}
+	return fmt.Sprintf("%.1f PiB", size/1024)
 }

@@ -5,8 +5,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
+
+	"github.com/tbxark/lux-app/internal/luxrunner"
 )
 
 const (
@@ -91,12 +94,12 @@ func saveConfig(prefs fyne.Preferences, cfg downloadConfig) {
 }
 
 func parseURLs(raw string) []string {
-	fields := strings.Fields(raw)
-	urls := make([]string, 0, len(fields))
-	for _, field := range fields {
-		field = strings.TrimSpace(field)
-		if field != "" {
-			urls = append(urls, field)
+	lines := strings.Split(raw, "\n")
+	urls := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			urls = append(urls, line)
 		}
 	}
 	return urls
@@ -110,55 +113,23 @@ func parsePositiveInt(raw string, fallback int) int {
 	return value
 }
 
-func (cfg downloadConfig) luxArgs() []string {
-	args := []string{"lux"}
-
-	appendValue := func(flag, value string) {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return
-		}
-		args = append(args, flag, value)
+func (cfg downloadConfig) runnerConfig(onProgress luxrunner.ProgressFunc) luxrunner.Config {
+	return luxrunner.Config{
+		URLs:             append([]string(nil), cfg.URLs...),
+		OutputPath:       cfg.OutputPath,
+		Stream:           strings.TrimSpace(cfg.Stream),
+		Cookie:           strings.TrimSpace(cfg.Cookie),
+		UserAgent:        strings.TrimSpace(cfg.UserAgent),
+		Refer:            strings.TrimSpace(cfg.Refer),
+		Playlist:         cfg.Playlist,
+		AudioOnly:        cfg.AudioOnly,
+		Caption:          cfg.Caption,
+		MultiThread:      cfg.MultiThread,
+		Silent:           cfg.Silent,
+		RetryTimes:       cfg.Retry,
+		ThreadNumber:     cfg.Threads,
+		ChunkSizeMB:      cfg.ChunkSizeMB,
+		OnProgress:       onProgress,
+		ProgressThrottle: 100 * time.Millisecond,
 	}
-	appendBool := func(flag string, enabled bool) {
-		if enabled {
-			args = append(args, flag)
-		}
-	}
-
-	appendValue("--output-path", cfg.OutputPath)
-	appendValue("--stream-format", cfg.Stream)
-	appendValue("--cookie", cfg.Cookie)
-	appendValue("--user-agent", cfg.UserAgent)
-	appendValue("--refer", cfg.Refer)
-
-	appendBool("--playlist", cfg.Playlist)
-	appendBool("--audio-only", cfg.AudioOnly)
-	appendBool("--caption", cfg.Caption)
-	appendBool("--multi-thread", cfg.MultiThread)
-	appendBool("--silent", cfg.Silent)
-
-	if cfg.Retry > 0 {
-		args = append(args, "--retry", strconv.Itoa(cfg.Retry))
-	}
-	if cfg.Threads > 0 {
-		args = append(args, "--thread", strconv.Itoa(cfg.Threads))
-	}
-	if cfg.ChunkSizeMB > 0 {
-		args = append(args, "--chunk-size", strconv.Itoa(cfg.ChunkSizeMB))
-	}
-
-	args = append(args, cfg.URLs...)
-	return args
-}
-
-func redactLuxArgs(args []string) []string {
-	redacted := append([]string(nil), args...)
-	for i := 0; i < len(redacted)-1; i++ {
-		if redacted[i] == "--cookie" {
-			redacted[i+1] = "[redacted]"
-			i++
-		}
-	}
-	return redacted
 }

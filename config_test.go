@@ -6,21 +6,21 @@ import (
 )
 
 func TestParseURLs(t *testing.T) {
-	got := parseURLs(" https://example.com/a\nhttps://example.com/b\tBV1xx ")
+	got := parseURLs(" https://example.com/a\nhttps://example.com/b\n  BV1xx  \n\n")
 	want := []string{"https://example.com/a", "https://example.com/b", "BV1xx"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseURLs() = %#v, want %#v", got, want)
 	}
 }
 
-func TestLuxArgs(t *testing.T) {
+func TestRunnerConfig(t *testing.T) {
 	cfg := downloadConfig{
 		URLs:        []string{"https://example.com/video"},
 		OutputPath:  "/tmp/videos",
-		Stream:      "720",
-		Cookie:      "a=b",
-		UserAgent:   "lux-app-test",
-		Refer:       "https://example.com",
+		Stream:      " 720 ",
+		Cookie:      " a=b ",
+		UserAgent:   " lux-app-test ",
+		Refer:       " https://example.com ",
 		Playlist:    true,
 		AudioOnly:   true,
 		Caption:     true,
@@ -31,33 +31,23 @@ func TestLuxArgs(t *testing.T) {
 		ChunkSizeMB: 8,
 	}
 
-	got := cfg.luxArgs()
-	want := []string{
-		"lux",
-		"--output-path", "/tmp/videos",
-		"--stream-format", "720",
-		"--cookie", "a=b",
-		"--user-agent", "lux-app-test",
-		"--refer", "https://example.com",
-		"--playlist",
-		"--audio-only",
-		"--caption",
-		"--multi-thread",
-		"--silent",
-		"--retry", "3",
-		"--thread", "4",
-		"--chunk-size", "8",
-		"https://example.com/video",
+	got := cfg.runnerConfig(nil)
+	if !reflect.DeepEqual(got.URLs, cfg.URLs) {
+		t.Fatalf("runnerConfig().URLs = %#v, want %#v", got.URLs, cfg.URLs)
 	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("luxArgs() = %#v, want %#v", got, want)
-	}
-}
-
-func TestRedactLuxArgs(t *testing.T) {
-	got := redactLuxArgs([]string{"lux", "--cookie", "secret", "--retry", "3", "https://example.com"})
-	want := []string{"lux", "--cookie", "[redacted]", "--retry", "3", "https://example.com"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("redactLuxArgs() = %#v, want %#v", got, want)
+	if got.OutputPath != "/tmp/videos" ||
+		got.Stream != "720" ||
+		got.Cookie != "a=b" ||
+		got.UserAgent != "lux-app-test" ||
+		got.Refer != "https://example.com" ||
+		!got.Playlist ||
+		!got.AudioOnly ||
+		!got.Caption ||
+		!got.MultiThread ||
+		!got.Silent ||
+		got.RetryTimes != 3 ||
+		got.ThreadNumber != 4 ||
+		got.ChunkSizeMB != 8 {
+		t.Fatalf("runnerConfig() = %#v", got)
 	}
 }
